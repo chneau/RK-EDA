@@ -133,3 +133,55 @@ func TestRK_Uniformize(t *testing.T) {
 		})
 	}
 }
+
+func TestRK_hasDuplicates(t *testing.T) {
+	tests := []struct {
+		name string
+		r    RK
+		want bool
+	}{
+		{
+			"test1_withDuplicates",
+			RK{0, 0, 1},
+			true,
+		},
+		{
+			"test2_withoutDuplicates",
+			RK{0, 0.5, 1},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.r.hasDuplicates(); got != tt.want {
+				t.Errorf("RK.hasDuplicates() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFromPerm(t *testing.T) {
+	type args struct {
+		perm []int
+	}
+	tests := []struct {
+		name string
+		args args
+		want RK
+	}{
+		{
+			"test1",
+			args{
+				[]int{1, 2, 0},
+			},
+			RK{0.5, 1, 0},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := FromPerm(tt.args.perm); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FromPerm() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
