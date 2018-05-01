@@ -116,45 +116,14 @@ func TestRK_Uniformize(t *testing.T) {
 	}{
 		{
 			"test1",
-			RK{-5.25, 0.1, 75.99},
-			RK{0, 0.5, 1},
-		},
-		{
-			"test2", // NOT SURE HOW YET
-			RK{0, 0, 0},
-			RK{0, 0.5, 1},
+			RK{-5.25, 75.99, 0.1},
+			RK{0, 1, 0.5},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.r.Uniformize(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RK.Uniformize() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestRK_hasDuplicates(t *testing.T) {
-	tests := []struct {
-		name string
-		r    RK
-		want bool
-	}{
-		{
-			"test1_withDuplicates",
-			RK{0, 0, 1},
-			true,
-		},
-		{
-			"test2_withoutDuplicates",
-			RK{0, 0.5, 1},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.r.hasDuplicates(); got != tt.want {
-				t.Errorf("RK.hasDuplicates() = %v, want %v", got, tt.want)
 			}
 		})
 	}

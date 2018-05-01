@@ -4,7 +4,7 @@ import (
 	"log"
 	"runtime/debug"
 
-	"github.com/chneau/RK-EDA/pkg/rk"
+	"github.com/chneau/RK-EDA/pkg/eda"
 )
 
 func gcstats() {
@@ -13,12 +13,26 @@ func gcstats() {
 	log.Println("gcstats.PauseTotal", gcstats.PauseTotal)
 }
 
+// Digits ...
+type Digits struct{}
+
+// Evaluate ...
+func (d Digits) Evaluate(permuration []int) (float64, error) {
+	sum := 0
+	for i := 0; i < len(permuration); i++ {
+		if permuration[i] == i {
+			continue
+		}
+		sum = sum + 1
+	}
+	log.Println("sum", sum)
+	return float64(sum), nil
+}
+
 func main() {
-	rk := rk.RK{0, 0, 0}
-	log.Println("before", rk)
-	perm := rk.Permutation()
-	log.Println("rk", rk)
-	log.Println("perm", perm)
+	problem := Digits{}
+	r := eda.Default(problem, 500)
+	r.Run()
 
 	gcstats()
 }
