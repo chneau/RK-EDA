@@ -35,9 +35,11 @@ func (r RK) Permutation() []int {
 }
 
 // VarianceMutate returns a muted version
-func (r RK) VarianceMutate(v float64) RK {
-	clone := r.Clone()
-	// TODO todo !
+func (r RK) VarianceMutate(baseRK []float64, stdev float64) RK {
+	clone := r.Uniformize()
+	for i := range clone {
+		clone[i] = clone[i] + rand.NormFloat64()*baseRK[i]*stdev
+	}
 	return clone
 }
 

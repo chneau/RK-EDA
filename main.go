@@ -7,6 +7,10 @@ import (
 	"github.com/chneau/RK-EDA/pkg/eda"
 )
 
+func init() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
+}
+
 func gcstats() {
 	gcstats := debug.GCStats{}
 	debug.ReadGCStats(&gcstats)
@@ -25,14 +29,13 @@ func (d Digits) Evaluate(permuration []int) (float64, error) {
 		}
 		sum = sum + 1
 	}
-	log.Println("sum", sum)
 	return float64(sum), nil
 }
 
 func main() {
 	problem := Digits{}
-	r := eda.Default(problem, 500)
-	r.Run()
-
+	r := eda.Default(problem, 20)
+	best := r.Run()
+	log.Println("best", *best.Fitness, best.RK.Permutation())
 	gcstats()
 }

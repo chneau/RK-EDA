@@ -1,7 +1,9 @@
 package eda
 
 import (
+	"log"
 	"math"
+	"sync"
 
 	"github.com/bradfitz/slice"
 	"github.com/chneau/RK-EDA/pkg/rk"
@@ -12,10 +14,15 @@ type Problem interface {
 	Evaluate(permuration []int) (float64, error)
 }
 
+// Cooler interface ...
+type Cooler interface {
+	NewTemperature(improvements int) float64
+}
+
 // Sol ...
 type Sol struct {
-	Fitness *float64
 	RK      rk.RK
+	Fitness *float64
 }
 
 // EDA of the RKEDA
@@ -29,73 +36,98 @@ type EDA struct {
 	Variance       float64
 	CurrentEv      int
 	BestSol        *Sol
-	Elits          []Sol
+	Elits          []*Sol
+	population     []*Sol
+	mutex          sync.Mutex
 }
 
 // Run starts the RKEDA
-func (e *EDA) Run() float64 {
-	population := []Sol{}
-	for len(population) < e.PopSize {
+func (e *EDA) Run() Sol {
+	for len(e.population) < e.PopSize {
 		s := &Sol{
 			RK: rk.Random(e.PermSize),
 		}
-		fit := e.evaluate(s)
-		s.Fitness = &fit
-		population = append(population, *s)
-		sortPop(population)
+		e.evaluate(s)
+		e.population = append(e.population, s)
 	}
 	for e.CurrentEv < e.MaxEv {
+		newPopulation := []*Sol{}
 		// elitism
-		for i := 0; i <= e.Elitism; i++ {
-			e.Elits = append(e.Elits, population[i])
-		}
-		sortPop(e.Elits)
-		e.Elits = e.Elits[:e.Elitism]
+		e.elitism()
 
 		// trunc
-		trunc := []Sol{}
-		for i := 0; i < e.TruncationSize; i++ {
-			trunc = append(trunc, population[i])
+		baseRK := e.trunc()
+		// fill with elits
+		for _, sol := range e.Elits {
+			s := &Sol{RK: sol.RK}
+			newPopulation = append(newPopulation, s)
 		}
-		truncRK := []rk.RK{}
-		for _, v := range trunc {
-			truncRK = append(truncRK, v.RK)
-		}
-		baseRK := rk.Mean(truncRK)
+		// fill with trunced
+		for i := 0; len(newPopulation) < e.PopSize; i++ {
+			s := &Sol{RK: e.population[i].RK}
+			newPopulation = append(newPopulation, s)
 
-		population = []Sol{}
-		// generating next pop
-		for i := 0; i < e.TruncationSize; i++ {
-			s := &Sol{
-				RK: baseRK.VarianceMutate(0.1),
-			}
-			fit := e.evaluate(s)
-			s.Fitness = &fit
-			population = append(population)
 		}
+		// limit := limiter.New(50)
+		for i := range newPopulation {
+			sol := newPopulation[i]
+			// limit.Execute(func() {
+			sol.RK = sol.RK.VarianceMutate(baseRK, e.Variance)
+			e.evaluate(sol)
+			// })
+		}
+		// limit.Wait()
+		e.population = newPopulation
 	}
-	return 0
+	return *e.BestSol
 }
 
-func sortPop(pop []Sol) {
+func (e *EDA) trunc() rk.RK {
+	trunc := []*Sol{}
+	for i := 0; i < e.TruncationSize; i++ {
+		trunc = append(trunc, e.population[i])
+	}
+	truncRK := []rk.RK{}
+	for _, v := range trunc {
+		truncRK = append(truncRK, v.RK)
+	}
+	baseRK := rk.Mean(truncRK)
+	return baseRK
+}
+
+func (e *EDA) elitism() {
+	sortPop(e.population)
+	for i := 0; i <= e.Elitism; i++ {
+		e.Elits = append(e.Elits, e.population[i])
+	}
+	sortPop(e.Elits)
+	e.Elits = e.Elits[:e.Elitism]
+}
+
+func sortPop(pop []*Sol) {
 	slice.Sort(pop, func(i, j int) bool {
-		return *pop[i].Fitness > *pop[j].Fitness
+		return *pop[i].Fitness < *pop[j].Fitness
 	})
 }
 
-func (e *EDA) evaluate(sol *Sol) float64 {
+func (e *EDA) evaluate(sol *Sol) {
+	e.mutex.Lock()
 	e.CurrentEv = e.CurrentEv + 1
+	currentEv := e.CurrentEv
+	e.mutex.Unlock()
+	if currentEv%100000 == 0 {
+		log.Println(currentEv, "/", e.MaxEv)
+	}
 	f, err := e.Problem.Evaluate(sol.RK.Permutation())
 	sol.Fitness = &f
 	if e.BestSol == nil {
 		e.BestSol = sol
-	} else if f > *e.BestSol.Fitness {
+	} else if f < *e.BestSol.Fitness {
 		e.BestSol = sol
 	}
 	if err != nil {
 		panic(err)
 	}
-	return f
 }
 
 // Reset the state of the EDA
