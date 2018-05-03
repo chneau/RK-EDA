@@ -7,6 +7,7 @@ import (
 
 	"github.com/bradfitz/slice"
 	"github.com/chneau/RK-EDA/pkg/rk"
+	"github.com/chneau/limiter"
 )
 
 // Problem interface ...
@@ -56,7 +57,7 @@ func (e *EDA) Run() Sol {
 		e.elitism()
 
 		// trunc
-		baseRK := e.trunc()
+		trunc, baseRK := e.trunc()
 		// fill with elits
 		for _, sol := range e.Elits {
 			s := &Sol{RK: sol.RK}
@@ -64,25 +65,25 @@ func (e *EDA) Run() Sol {
 		}
 		// fill with trunced
 		for i := 0; len(newPopulation) < e.PopSize; i++ {
-			s := &Sol{RK: e.population[i].RK}
+			s := &Sol{RK: trunc[i%e.TruncationSize].RK}
 			newPopulation = append(newPopulation, s)
 
 		}
-		// limit := limiter.New(50)
+		limit := limiter.New(50)
 		for i := range newPopulation {
 			sol := newPopulation[i]
-			// limit.Execute(func() {
-			sol.RK = sol.RK.VarianceMutate(baseRK, e.Variance)
-			e.evaluate(sol)
-			// })
+			limit.Execute(func() {
+				sol.RK = sol.RK.VarianceMutate(baseRK, e.Variance)
+				e.evaluate(sol)
+			})
 		}
-		// limit.Wait()
+		limit.Wait()
 		e.population = newPopulation
 	}
 	return *e.BestSol
 }
 
-func (e *EDA) trunc() rk.RK {
+func (e *EDA) trunc() ([]*Sol, rk.RK) {
 	trunc := []*Sol{}
 	for i := 0; i < e.TruncationSize; i++ {
 		trunc = append(trunc, e.population[i])
@@ -92,7 +93,7 @@ func (e *EDA) trunc() rk.RK {
 		truncRK = append(truncRK, v.RK)
 	}
 	baseRK := rk.Mean(truncRK)
-	return baseRK
+	return trunc, baseRK
 }
 
 func (e *EDA) elitism() {
@@ -116,7 +117,7 @@ func (e *EDA) evaluate(sol *Sol) {
 	currentEv := e.CurrentEv
 	e.mutex.Unlock()
 	if currentEv%100000 == 0 {
-		log.Println(currentEv, "/", e.MaxEv)
+		log.Println(currentEv, "/", e.MaxEv, "=>", *e.BestSol.Fitness)
 	}
 	f, err := e.Problem.Evaluate(sol.RK.Permutation())
 	sol.Fitness = &f

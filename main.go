@@ -3,6 +3,9 @@ package main
 import (
 	"log"
 	"runtime/debug"
+	"time"
+
+	"math/rand"
 
 	"github.com/chneau/RK-EDA/pkg/eda"
 )
@@ -33,8 +36,9 @@ func (d Digits) Evaluate(permuration []int) (float64, error) {
 }
 
 func main() {
+	rand.Seed(time.Now().UTC().UnixNano())
 	problem := Digits{}
-	r := eda.Default(problem, 20)
+	r := eda.Default(problem, 100)
 	best := r.Run()
 	log.Println("best", *best.Fitness, best.RK.Permutation())
 	gcstats()
